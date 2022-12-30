@@ -7,74 +7,116 @@
 import os
 import errno
 import winshell
+import math
+from datetime import datetime, timedelta
+
 
 PATH = 'recycle_bin'
 INDEX_FILE_NAME = 'index.csv'
 CREATE_INDEX_FILE = True
 
-def copyRecycleBin(path = PATH, indexFileName = INDEX_FILE_NAME,
-	createIndexFile = CREATE_INDEX_FILE, consoleOutput = True):
-	def getNewName(name):
-		retName = name
-		if name in filesSet:
-			i = 1
-			fileName, fileExt = os.path.splitext(name)
-			while True:
-				newName = f'{fileName}_{i}{fileExt}'
-				if newName not in filesSet:
-					retName = newName
-					break
-				i += 1
-		filesSet.add(retName)
-		return retName
 
-	finalPath = os.path.abspath(path)
-	filesSet = set()
-	try:
-		os.mkdir(path)
-	except OSError as error:
-		print("Failed to copy recycle bin!")
-		if error.errno == errno.EEXIST:
-			print(f'Directory "{finalPath}" currently exists...')
-		return False
+def copyRecycleBin(path=PATH,
+                   indexFileName=INDEX_FILE_NAME,
+                   createIndexFile=CREATE_INDEX_FILE,
+                   consoleOutput=True):
 
-	if createIndexFile:
-		try:
-			indexFile = open(indexFileName, 'x', encoding='utf-8')
-		except OSError as error:
-			print("Failed to copy recycle bin!")
-			if error.errno == errno.EEXIST:
-				print(f'Index file "{indexFileName}" currently exists...')
-			return False
-	os.chdir(path)
-		
-	elements = list(winshell.recycle_bin())
-	if createIndexFile:
-		indexFile.write(f'"Recycle bin files index";"Number of elements: {len(elements)}"\n\n')
-		indexFile.write(f'"File name";"Original file name";"Created at";"Deleted at"\n')
-	
-	for i, element in enumerate(elements):
-		curFilePath = element.filename()
-		orgFileName = element.original_filename()
-		fileName = getNewName(os.path.basename(orgFileName))
-		try:
-			cTime = str(element.getctime())
-		except:
-			cTime = '[unknown]'
-		winshell.copy_file(curFilePath, fileName)
-		if createIndexFile:
-			indexFile.write(f'"{fileName}";"{orgFileName}";"{cTime}";"{element.recycle_date()}"\n')
-		if consoleOutput:
-			print(f'{i + 1}/{len(elements)}')
-	
-	if consoleOutput:
-		print('Copying completed!')
-	return True
+    def getFileCreationDate(element):
+        try:
+            creationDate = element.getctime() - timedelta(hours=3, minutes=0)
+            return str(creationDate)
+        except:
+            return '[unknown]'
+
+    def getFileModificationDate(element):
+        try:
+            modificationDate = element.getmtime() - timedelta(hours=3, minutes=0)
+            return str(modificationDate)
+        except:
+            return '[unknown]'
+
+    def getFileDeletionDate(element):
+        try:
+            deletionDate = element.recycle_date() - timedelta(hours=3, minutes=0)
+            return str(deletionDate)
+        except:
+            return '[unknown]'
+
+    def getFileSize(element):
+        try:
+            return convert_size(element.getsize())
+        except:
+            return '0B'
+
+    def convert_size(size_bytes):
+        if size_bytes == 0:
+            return "0B"
+        size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+        i = int(math.floor(math.log(size_bytes, 1024)))
+        p = math.pow(1024, i)
+        s = round(size_bytes / p, 2)
+        return "%s %s" % (s, size_name[i])
+
+    def getNewName(name):
+        retName = name
+        if name in filesSet:
+            i = 1
+            fileName, fileExt = os.path.splitext(name)
+            while True:
+                newName = f'{fileName}_{i}{fileExt}'
+                if newName not in filesSet:
+                    retName = newName
+                    break
+                i += 1
+        filesSet.add(retName)
+        return retName
+
+    finalPath = os.path.abspath(path)
+    filesSet = set()
+    try:
+        os.mkdir(path)
+    except OSError as error:
+        print("Failed to copy recycle bin!")
+        if error.errno == errno.EEXIST:
+            print(f'Directory "{finalPath}" currently exists...')
+        return False
+
+    if createIndexFile:
+        try:
+            indexFile = open(indexFileName, 'x', encoding='utf-8')
+        except OSError as error:
+            print("Failed to copy recycle bin!")
+            if error.errno == errno.EEXIST:
+                print(f'Index file "{indexFileName}" currently exists...')
+            return False
+    os.chdir(path)
+
+    elements = list(winshell.recycle_bin())
+    if createIndexFile:
+        indexFile.write(
+            f'"Recycle bin files index";"Number of elements: {len(elements)}"\n\n')
+        indexFile.write(
+            f'"File name";"Origin file path";"Size";"Creation Date";"Modified Date";"Deleted Date"\n')
+
+    for i, element in enumerate(elements):
+        originalFilePath = element.original_filename()
+        fileName = getNewName(os.path.basename(originalFilePath))
+        createdDate = getFileCreationDate(element)
+        modifiedDate = getFileModificationDate(element)
+        deletionDate = getFileDeletionDate(element)
+        fileSize = getFileSize(element)
+
+        if createIndexFile:
+            indexFile.write(
+                f'"{fileName}";"{originalFilePath}";"{fileSize}";"{createdDate}";"{modifiedDate}";"{deletionDate}"\n')
+        if consoleOutput:
+            print(f'{i + 1}/{len(elements)}')
+
+    if consoleOutput:
+        print('Copying completed!')
+    return True
+
 
 if __name__ == '__main__':
-	print(f'All your files in recycle bin will be copied to {os.path.abspath(PATH)}')
-	cont = input('Do you want to continue? [Y/N]:')
-	if cont.lower() != 'y':
-		exit()
-	copyRecycleBin()
-	input()
+    copyRecycleBin()
+    input()
