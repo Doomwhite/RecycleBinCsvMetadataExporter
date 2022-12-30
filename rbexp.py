@@ -8,18 +8,11 @@ import os
 import errno
 import winshell
 import math
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 
-PATH = 'recycle_bin'
-INDEX_FILE_NAME = 'index.csv'
-CREATE_INDEX_FILE = True
-
-
-def copyRecycleBin(path=PATH,
-                   indexFileName=INDEX_FILE_NAME,
-                   createIndexFile=CREATE_INDEX_FILE,
-                   consoleOutput=True):
+def copyRecycleBin(consoleOutput=True):
+    indexFileName = f'{datetime.today().strftime("%m-%d-%y %Hh %Mm %Ss")}.csv'
 
     def getFileCreationDate(element):
         try:
@@ -71,32 +64,21 @@ def copyRecycleBin(path=PATH,
         filesSet.add(retName)
         return retName
 
-    finalPath = os.path.abspath(path)
     filesSet = set()
+
     try:
-        os.mkdir(path)
+        indexFile = open(indexFileName, 'x', encoding='utf-8')
     except OSError as error:
-        print("Failed to copy recycle bin!")
+        # print("Failed to copy recycle bin!")
         if error.errno == errno.EEXIST:
-            print(f'Directory "{finalPath}" currently exists...')
+            print(f'Index file "{indexFileName}" currently exists...')
         return False
 
-    if createIndexFile:
-        try:
-            indexFile = open(indexFileName, 'x', encoding='utf-8')
-        except OSError as error:
-            print("Failed to copy recycle bin!")
-            if error.errno == errno.EEXIST:
-                print(f'Index file "{indexFileName}" currently exists...')
-            return False
-    os.chdir(path)
-
     elements = list(winshell.recycle_bin())
-    if createIndexFile:
-        indexFile.write(
-            f'"Recycle bin files index";"Number of elements: {len(elements)}"\n\n')
-        indexFile.write(
-            f'"File name";"Origin file path";"Size";"Creation Date";"Modified Date";"Deleted Date"\n')
+    indexFile.write(
+        f'"Recycle bin files index";"Number of elements: {len(elements)}"\n\n')
+    indexFile.write(
+        f'"File name";"Origin file path";"Size";"Creation Date";"Modified Date";"Deleted Date"\n')
 
     for i, element in enumerate(elements):
         originalFilePath = element.original_filename()
@@ -106,9 +88,8 @@ def copyRecycleBin(path=PATH,
         deletionDate = getFileDeletionDate(element)
         fileSize = getFileSize(element)
 
-        if createIndexFile:
-            indexFile.write(
-                f'"{fileName}";"{originalFilePath}";"{fileSize}";"{createdDate}";"{modifiedDate}";"{deletionDate}"\n')
+        indexFile.write(
+            f'"{fileName}";"{originalFilePath}";"{fileSize}";"{createdDate}";"{modifiedDate}";"{deletionDate}"\n')
         if consoleOutput:
             print(f'{i + 1}/{len(elements)}')
 
