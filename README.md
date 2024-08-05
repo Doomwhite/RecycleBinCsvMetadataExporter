@@ -6,6 +6,7 @@ A simple python script to export Windows recycle bin contents.
 # Requirements
 - Python 3 (script was tested on version 3.10)
 - Required modules: pypiwin32, winshell
+- Zig 0.13.0 (Optional for building the executable)
 
 ```
 python -m pip install pypiwin32
